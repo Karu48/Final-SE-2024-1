@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from dataclasses import dataclass
-from flask import Flask, jsonify, request
+from flask import Flask, request
 from flask_cors import CORS
+from datetime import date
 
 
 CuentaUsuario = {
-    "21345" : {"saldo": 200, "contactos": ["123", "456"]},
-    "123" : {"saldo": 400, "contactos": ["456"]},
-    "456" : {"saldo": 300, "contactos": ["21345"]}
+    "21345" : {"saldo": 200, "contactos": ["123", "456"], "nombre": "Arnaldo"},
+    "123" : {"saldo": 400, "contactos": ["456"], "nombre": "Luisa"},
+    "456" : {"saldo": 300, "contactos": ["21345"], "nombre": "Andrea"}
 }
 
 Operacion = {}
@@ -22,17 +22,28 @@ CORS(app, origins='*')
 def get_contactos():
     minumero = request.args.get('minumero')
     if minumero not in CuentaUsuario:
-        return jsonify({"status": "error"})
-    return jsonify(CuentaUsuario[minumero]['contactos'])
+        return ("Cuenta no existe")
+    
+    returnValue = ""
+    for contacto in CuentaUsuario[minumero]['contactos']:
+        returnValue += contacto + " : " + CuentaUsuario[contacto]['nombre'] + "\n"
+    return returnValue
 
 @app.route('/billetera/historial', methods=['GET'])
 def get_historial():
     minumero = request.args.get('minumero')
     if minumero not in CuentaUsuario:
-        return jsonify({"status": "error"})
+        return ("Cuenta no existe")
     if minumero not in Operacion:
-        return jsonify([])
-    return jsonify(Operacion[minumero])
+        return ("")
+    
+    returnValue = ""
+    for operacion in Operacion[minumero]:
+        if operacion['tipo'] == "enviado":
+            returnValue += "Pago realizado de " + operacion['valor'] + " a " + CuentaUsuario[operacion['destino']]["nombre"] + "\n"
+        else:
+            returnValue += "Pago recibido de " + operacion['valor'] + " de " + CuentaUsuario[operacion['origen']]["nombre"] + "\n"
+    return (returnValue)
 
 @app.route('/billetera/pagar', methods=['GET'])
 def pagar():
@@ -43,9 +54,9 @@ def pagar():
 
     # Accounts exist
     if minumero not in CuentaUsuario or numerodestino not in CuentaUsuario:
-        return jsonify({"status": "error"})
+        return ("Cuenta no existe")
     if CuentaUsuario[minumero]['saldo'] < int(valor):
-        return jsonify({"status": "error"})
+        return ("Saldo insuficiente")
     
     # Transfer
     CuentaUsuario[minumero]['saldo'] -= int(valor)
@@ -61,7 +72,8 @@ def pagar():
         Operacion[numerodestino] = []
     Operacion[numerodestino].append({"tipo": "recibido", "valor": valor, "origen": minumero})
 
-    return jsonify({"status": "ok"})
+    date_ = date.today()
+    return "Realizado el " + date_.strftime("%d/%m/%Y")
 
 if __name__ == '__main__':
     app.run(port=5000, host='0.0.0.0')
